@@ -157,7 +157,7 @@
     .fingering-svg .key-shape.alias-pressed { fill: #f0a63c; stroke: #9b6213; }
     .fingering-svg .key-shape:hover, .fingering-svg .key-shape:focus-visible { stroke: var(--accent-strong); stroke-width: 3; }
     .staff-note { cursor: pointer; }
-    .staff-note.selected { filter: drop-shadow(0 0 3px var(--note-focus)); }
+    .staff-note.selected { filter: none; }
     .staff-note.selected .abcjs-notehead, .staff-note.selected .abcjs-stem { fill: var(--note-focus) !important; stroke: var(--note-focus) !important; }
     .alt-button-wrap { min-height: 22px; }
     .alt-button { padding: 3px 7px; font-size: .67rem; color: var(--accent-strong); }
@@ -573,8 +573,9 @@
         element.classList.toggle('selected', selected);
         element.setAttribute('aria-pressed', String(selected));
       });
-      document.querySelectorAll('#staff .staff-note').forEach((element, index) => {
-        const selected = index === selectedIndex;
+      document.querySelectorAll('#staff .staff-note').forEach(element => {
+        const selected = selectedIndex !== null && element.dataset.noteIndex === String(selectedIndex);
+        element.classList.remove('selected', 'abcjs-note_selected');
         element.classList.toggle('selected', selected);
         element.setAttribute('aria-pressed', String(selected));
       });
