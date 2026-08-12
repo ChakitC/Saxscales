@@ -668,28 +668,18 @@
       }
       try {
         target.innerHTML = '';
-        if (!document.documentElement.dataset.staffNoteEvents) {
-          const findStaffNote = event => {
-            const direct = event.target.closest?.('.staff-note');
-            if (direct) return direct;
-            if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return null;
-            return [...document.querySelectorAll('#staff .staff-note')].find(noteElement => {
-              const bounds = noteElement.getBoundingClientRect();
-              return event.clientX >= bounds.left - 8 && event.clientX <= bounds.right + 8
-                && event.clientY >= bounds.top - 8 && event.clientY <= bounds.bottom + 8;
-            }) || null;
-          };
-          const interceptStaffNoteEvent = event => {
-            const noteElement = findStaffNote(event);
-            if (!noteElement) return;
-            event.stopImmediatePropagation();
-            if (event.type === 'click') {
-              event.preventDefault();
-              selectNote(Number(noteElement.dataset.noteIndex));
+        if (!document.documentElement.dataset.staffNoteObserver) {
+          const observer = new MutationObserver(() => {
+            const abcSelected = document.querySelector('#staff .staff-note.abcjs-note_selected');
+            if (!abcSelected) return;
+            const index = Number(abcSelected.dataset.noteIndex);
+            if (Number.isInteger(index) && state.selectedNoteIndex !== index) {
+              state.selectedNoteIndex = index;
+              updateSelectedNote();
             }
-          };
-          ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach(type => document.addEventListener(type, interceptStaffNoteEvent, { capture: true }));
-          document.documentElement.dataset.staffNoteEvents = 'true';
+          });
+          observer.observe(document, { subtree: true, attributes: true, attributeFilter: ['class', 'fill', 'stroke'] });
+          document.documentElement.dataset.staffNoteObserver = 'true';
         }
         window.ABCJS.renderAbc(target, buildAbc(keyId, notes), { responsive: 'resize', add_classes: true, paddingtop: 4, paddingbottom: 4 });
         target.querySelectorAll('.abcjs-note').forEach(noteElement => {
