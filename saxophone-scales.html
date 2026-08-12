@@ -16,6 +16,7 @@
       --accent: #3459d1;
       --accent-strong: #2043af;
       --accent-soft: #e7edff;
+      --note-focus: #d52f3f;
       --pressed: #315bcf;
       --pressed-stroke: #1c388e;
       --pressed-low: #4d8f5b;
@@ -36,6 +37,7 @@
       --accent: #8fa8ff;
       --accent-strong: #b8c7ff;
       --accent-soft: #293a69;
+      --note-focus: #ff7a86;
       --pressed: #7894ff;
       --pressed-stroke: #c9d5ff;
       --pressed-low: #6aaa77;
@@ -134,9 +136,10 @@
     .note-cell { min-height: 68px; padding: 11px 5px 8px; border-bottom: 1px solid var(--line); }
     .note-cell { cursor: pointer; user-select: none; transition: background .16s ease, box-shadow .16s ease; }
     .note-cell:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: -3px; }
-    .note-cell.selected, .fingering-cell.selected { background: var(--panel-soft); box-shadow: inset 0 0 0 3px var(--accent-strong); }
+    .note-cell.selected, .fingering-cell.selected { background: var(--panel-soft); box-shadow: inset 0 0 0 3px var(--note-focus); }
     .note-cell.selected { position: relative; z-index: 2; }
     .fingering-cell.selected { z-index: 2; }
+    .note-cell.selected strong { color: var(--note-focus); }
     .note-cell strong { display: block; font-size: 1rem; line-height: 1.05; }
     .note-cell small { display: block; margin-top: 4px; color: var(--muted); font-size: .68rem; }
     .fingering-cell { min-height: 330px; padding: 7px 4px 10px; position: relative; }
@@ -154,7 +157,8 @@
     .fingering-svg .key-shape.alias-pressed { fill: #f0a63c; stroke: #9b6213; }
     .fingering-svg .key-shape:hover, .fingering-svg .key-shape:focus-visible { stroke: var(--accent-strong); stroke-width: 3; }
     .staff-note { cursor: pointer; }
-    .staff-note.selected { filter: drop-shadow(0 0 3px var(--accent-strong)); }
+    .staff-note.selected { filter: drop-shadow(0 0 3px var(--note-focus)); }
+    .staff-note.selected .abcjs-notehead, .staff-note.selected .abcjs-stem { fill: var(--note-focus) !important; stroke: var(--note-focus) !important; }
     .alt-button-wrap { min-height: 22px; }
     .alt-button { padding: 3px 7px; font-size: .67rem; color: var(--accent-strong); }
     .alternate-list { display: none; margin-top: 5px; text-align: left; padding: 7px; background: var(--panel-soft); border-radius: 8px; font-size: .68rem; }
@@ -659,7 +663,9 @@
       try {
         target.innerHTML = '';
         window.ABCJS.renderAbc(target, buildAbc(keyId, notes), { responsive: 'resize', add_classes: true, paddingtop: 4, paddingbottom: 4 });
-        target.querySelectorAll('.abcjs-note').forEach((noteElement, index) => {
+        target.querySelectorAll('.abcjs-note').forEach(noteElement => {
+          const indexMatch = noteElement.className.baseVal.match(/(?:^| )abcjs-n(\d+)(?: |$)/);
+          const index = indexMatch ? Number(indexMatch[1]) : -1;
           const note = notes[index];
           if (!note) return;
           noteElement.classList.add('staff-note');
@@ -668,11 +674,11 @@
           noteElement.setAttribute('tabindex', '0');
           noteElement.setAttribute('aria-pressed', 'false');
           noteElement.setAttribute('aria-label', `Select note ${displayNoteName(note.name)} to show fingering`);
-          noteElement.addEventListener('click', () => selectNote(index));
+          noteElement.addEventListener('click', () => selectNote(Number(noteElement.dataset.noteIndex)));
           noteElement.addEventListener('keydown', event => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              selectNote(index);
+              selectNote(Number(noteElement.dataset.noteIndex));
             }
           });
         });
