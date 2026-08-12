@@ -587,7 +587,7 @@
     }
 
     function selectNote(index) {
-      state.selectedNoteIndex = state.selectedNoteIndex === index ? null : index;
+      state.selectedNoteIndex = index;
       updateSelectedNote();
       if (state.selectedNoteIndex !== null) {
         document.querySelector(`#scale-card .fingering-cell[data-note-index="${state.selectedNoteIndex}"]`)
@@ -673,7 +673,7 @@
             const abcSelected = document.querySelector('#staff .staff-note.abcjs-note_selected');
             if (!abcSelected) return;
             const index = Number(abcSelected.dataset.noteIndex);
-            if (Number.isInteger(index) && state.selectedNoteIndex !== index) {
+            if (Number.isInteger(index)) {
               state.selectedNoteIndex = index;
               updateSelectedNote();
             }
