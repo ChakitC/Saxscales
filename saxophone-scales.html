@@ -668,7 +668,7 @@
       }
       try {
         target.innerHTML = '';
-        if (!target.dataset.staffNoteEvents) {
+        if (!document.documentElement.dataset.staffNoteEvents) {
           const interceptStaffNoteEvent = event => {
             const noteElement = event.target.closest?.('.staff-note');
             if (!noteElement) return;
@@ -678,8 +678,8 @@
               selectNote(Number(noteElement.dataset.noteIndex));
             }
           };
-          ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach(type => target.addEventListener(type, interceptStaffNoteEvent, { capture: true }));
-          target.dataset.staffNoteEvents = 'true';
+          ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach(type => document.addEventListener(type, interceptStaffNoteEvent, { capture: true }));
+          document.documentElement.dataset.staffNoteEvents = 'true';
         }
         window.ABCJS.renderAbc(target, buildAbc(keyId, notes), { responsive: 'resize', add_classes: true, paddingtop: 4, paddingbottom: 4 });
         target.querySelectorAll('.abcjs-note').forEach(noteElement => {
