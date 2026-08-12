@@ -632,7 +632,7 @@
         return;
       }
       playback.index += 1;
-      selectNote(playback.index, { fromPlayback: true, scroll: false });
+      selectNote(playback.index, { fromPlayback: true });
       schedulePlaybackAdvance();
     }
 
@@ -646,7 +646,7 @@
       playback.completed = false;
       playback.paused = false;
       playback.running = true;
-      selectNote(startIndex, { fromPlayback: true, scroll: false });
+      selectNote(startIndex, { fromPlayback: true });
       updatePlaybackControls();
       schedulePlaybackAdvance();
     }
@@ -709,13 +709,24 @@
       });
     }
 
+    function centerNoteColumn(index, behavior = 'smooth') {
+      const scroll = document.querySelector('#scale-card .alignment-scroll');
+      const cell = document.querySelector(`#scale-card .fingering-cell[data-note-index="${index}"]`);
+      if (!scroll || !cell) return;
+      const scrollRect = scroll.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const target = scroll.scrollLeft + cellRect.left + cellRect.width / 2 - scrollRect.left - scroll.clientWidth / 2;
+      const maxScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+      scroll.scrollTo({ left: Math.min(maxScroll, Math.max(0, target)), behavior });
+    }
+
     function selectNote(index, { fromPlayback = false, scroll = true } = {}) {
       if (!fromPlayback) stopPlayback();
       state.selectedNoteIndex = index;
       updateSelectedNote();
       if (scroll && state.selectedNoteIndex !== null) {
-        document.querySelector(`#scale-card .fingering-cell[data-note-index="${state.selectedNoteIndex}"]`)
-          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        const selectedIndex = state.selectedNoteIndex;
+        setTimeout(() => { if (state.selectedNoteIndex === selectedIndex) centerNoteColumn(selectedIndex); }, 0);
       }
     }
 
