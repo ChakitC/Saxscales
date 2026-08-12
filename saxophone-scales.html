@@ -680,7 +680,11 @@
           noteElement.setAttribute('tabindex', '0');
           noteElement.setAttribute('aria-pressed', 'false');
           noteElement.setAttribute('aria-label', `Select note ${displayNoteName(note.name)} to show fingering`);
-          noteElement.addEventListener('click', () => selectNote(Number(noteElement.dataset.noteIndex)));
+          noteElement.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            selectNote(Number(noteElement.dataset.noteIndex));
+          }, { capture: true });
           noteElement.addEventListener('keydown', event => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
