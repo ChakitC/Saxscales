@@ -717,7 +717,13 @@
       const notes = buildScale(state.key, state.mode);
       if (!notes.length) return;
       const playback = state.playback;
-      const startIndex = playback.completed ? 0 : (state.selectedNoteIndex !== null && notes[state.selectedNoteIndex] ? state.selectedNoteIndex : 0);
+      const restarting = playback.completed;
+      const startIndex = restarting ? 0 : (state.selectedNoteIndex !== null && notes[state.selectedNoteIndex] ? state.selectedNoteIndex : 0);
+      if (restarting) {
+        state.selectedNoteIndex = null;
+        updateSelectedNote();
+        centerNoteColumn(0);
+      }
       playback.notes = notes;
       playback.index = startIndex;
       playback.completed = false;
