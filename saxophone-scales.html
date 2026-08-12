@@ -598,11 +598,19 @@
     function attachNoteCellEvents(notes) {
       document.querySelectorAll('#scale-card .note-cell').forEach((cell, index) => {
         cell.dataset.noteIndex = String(index);
+      });
+      document.querySelectorAll('#scale-card .note-cell, #scale-card .fingering-cell').forEach(cell => {
+        const index = Number(cell.dataset.noteIndex);
+        const note = notes[index];
+        if (!note) return;
         cell.setAttribute('role', 'button');
         cell.setAttribute('tabindex', '0');
         cell.setAttribute('aria-pressed', 'false');
-        cell.setAttribute('aria-label', `Select note ${displayNoteName(notes[index].name)} to show fingering`);
-        cell.addEventListener('click', () => selectNote(index));
+        cell.setAttribute('aria-label', `Select note ${displayNoteName(note.name)} to show fingering`);
+        cell.addEventListener('click', event => {
+          if (event.target.closest('[data-alt-toggle]')) return;
+          selectNote(index);
+        });
         cell.addEventListener('keydown', event => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
@@ -668,18 +676,31 @@
       }
       try {
         target.innerHTML = '';
-        if (!document.documentElement.dataset.staffNoteObserver) {
-          const observer = new MutationObserver(() => {
-            const abcSelected = document.querySelector('#staff .staff-note.abcjs-note_selected');
-            if (!abcSelected) return;
-            const index = Number(abcSelected.dataset.noteIndex);
-            if (Number.isInteger(index)) {
-              state.selectedNoteIndex = index;
-              updateSelectedNote();
-            }
-          });
-          observer.observe(document, { subtree: true, attributes: true, attributeFilter: ['class', 'fill', 'stroke'] });
-          document.documentElement.dataset.staffNoteObserver = 'true';
+        if (!document.documentElement.dataset.staffNotePointerHandler) {
+          const selectStaffNoteAtPoint = event => {
+            const staff = document.getElementById('staff');
+            if (!staff || !staff.contains(event.target)) return;
+            const point = event.touches?.[0] || event;
+            if (!Number.isFinite(point.clientX) || !Number.isFinite(point.clientY)) return;
+            let closestNote = null;
+            let closestDistance = Infinity;
+            staff.querySelectorAll('.staff-note').forEach(noteElement => {
+              const bounds = noteElement.getBoundingClientRect();
+              const dx = point.clientX - (bounds.left + bounds.right) / 2;
+              const dy = point.clientY - (bounds.top + bounds.bottom) / 2;
+              const distance = dx * dx + dy * dy;
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestNote = noteElement;
+              }
+            });
+            if (!closestNote) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            selectNote(Number(closestNote.dataset.noteIndex));
+          };
+          ['pointerdown', 'mousedown', 'touchstart'].forEach(type => document.addEventListener(type, selectStaffNoteAtPoint, { capture: true, passive: false }));
+          document.documentElement.dataset.staffNotePointerHandler = 'true';
         }
         window.ABCJS.renderAbc(target, buildAbc(keyId, notes), { responsive: 'resize', add_classes: true, paddingtop: 4, paddingbottom: 4 });
         target.querySelectorAll('.abcjs-note').forEach(noteElement => {
