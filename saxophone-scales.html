@@ -154,9 +154,9 @@
     .fingering-svg .key-shape.pressed.pinky { fill: var(--pressed-low); stroke: var(--pressed-low-stroke); }
     .fingering-svg .key-shape.optional { opacity: .52; stroke-dasharray: 2 2; }
     .fingering-svg .key-shape.optional.pressed { opacity: 1; stroke-dasharray: none; }
-    .fingering-svg .key-shape.alias-pressed { fill: #f0a63c; stroke: #9b6213; }
     .fingering-svg .key-shape:hover, .fingering-svg .key-shape:focus-visible { stroke: var(--accent-strong); stroke-width: 3; }
     .staff-note { cursor: pointer; }
+    .staff-note:focus, .staff-note:focus-visible { outline: none !important; }
     .staff-note.selected { filter: none; }
     .staff-note.selected .abcjs-notehead, .staff-note.selected .abcjs-stem { fill: var(--note-focus) !important; stroke: var(--note-focus) !important; }
     .alt-button-wrap { min-height: 22px; }
@@ -360,8 +360,7 @@
       A: { F: '#', C: '#' }, D: { F: '#' }, G: { F: '#' }
     };
 
-    // 23 physical points. Side F# and optional high F# are separate physical keys;
-    // altF# is only an alternate label for the highF# point.
+    // 23 physical points. Side F# and optional high F# are separate physical keys.
     const KEY_LAYOUT = [
       // Top of the real key map: Front F, octave lever, LH main stack, bis and palm keys.
       { id: 'frontF', label: 'front F', group: 'left', kind: 'frontF', x: 58, y: 40 },
@@ -392,7 +391,6 @@
       { id: 'Eb', label: 'low Eb', group: 'right', kind: 'capsule', x: 42, y: 404, w: 30, h: 13 },
       { id: 'lowC', label: 'low C', group: 'right', kind: 'capsule', x: 42, y: 430, w: 30, h: 13 }
     ];
-    const KEY_ALIASES = { 'altF#': 'highF#' };
     const KEY_LABEL = Object.fromEntries(KEY_LAYOUT.map(item => [item.id, item.label]));
 
     // Standard basic fingerings, written as the physical key ids above.
@@ -435,7 +433,7 @@
       Eb6: { keys: ['oct','palmD','palmEb'] },
       E6:  { keys: ['oct','palmD','palmEb','sideE'] },
       F6:  { keys: ['oct','palmD','palmEb','palmF','sideE'] },
-      'F#6': { keys: ['oct','palmD','palmEb','palmF','highF#'], alts: [{ label: 'alt F#', keys: ['oct','palmD','palmEb','palmF','altF#'], note: 'ใช้แทน high F# เมื่อเครื่องไม่มีคีย์ high F# แยก' }] }
+      'F#6': { keys: ['oct','palmD','palmEb','palmF','sideE','highF#'], alts: [{ label: 'alt F#', keys: ['oct','frontF','A','sideBb'], note: 'ใช้แทน high F# เมื่อเครื่องไม่มีคีย์ high F# แยก' }] }
     };
 
     const state = { key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null };
@@ -525,8 +523,7 @@
     }
 
     function renderSvg(keys, compact = false) {
-      const pressed = new Set((keys || []).map(key => KEY_ALIASES[key] || key));
-      const sourceKeys = new Set(keys || []);
+      const pressed = new Set(keys || []);
       const viewBox = compact ? '0 0 120 145' : '0 0 120 455';
       const yScale = compact ? .31 : 1;
       const shapeScale = compact ? .68 : 1;
@@ -536,11 +533,10 @@
         const x = item.x;
         const y = mapY(item.y);
         const isPressed = pressed.has(item.id);
-        const isAlias = sourceKeys.has('altF#') && item.id === 'highF#';
         const classes = ['key-shape'];
         if (item.id === 'highF#' && !state.highFsharp) classes.push('optional');
-        if (isPressed) classes.push(isAlias ? 'alias-pressed' : 'pressed', lowKeys.has(item.id) ? 'pinky' : 'upper');
-        const label = item.id === 'highF#' && isAlias ? 'alt F#' : item.label;
+        if (isPressed) classes.push('pressed', lowKeys.has(item.id) ? 'pinky' : 'upper');
+        const label = item.label;
         const attributes = `class="${classes.join(' ')}" tabindex="0" role="button" aria-label="${label}: ${isPressed ? 'กด' : 'ไม่กด'}" aria-pressed="${isPressed}"`;
         const transform = item.rotate ? ` transform="rotate(${item.rotate} ${x} ${y})"` : '';
         if (item.kind === 'frontF') {
@@ -576,6 +572,15 @@
       document.querySelectorAll('#staff .staff-note').forEach(element => {
         const selected = selectedIndex !== null && element.dataset.noteIndex === String(selectedIndex);
         element.classList.remove('selected', 'abcjs-note_selected');
+        element.querySelectorAll('.abcjs-note_selected').forEach(child => child.classList.remove('abcjs-note_selected'));
+        element.querySelectorAll('.abcjs-notehead, .abcjs-stem').forEach(part => {
+          part.style.removeProperty('fill');
+          part.style.removeProperty('stroke');
+          if (selected) {
+            part.style.setProperty('fill', 'var(--note-focus)');
+            part.style.setProperty('stroke', 'var(--note-focus)');
+          }
+        });
         element.classList.toggle('selected', selected);
         element.setAttribute('aria-pressed', String(selected));
       });
@@ -699,7 +704,7 @@
         if (!entries.some(([name]) => parseNote(name).midi === midi)) missing.push(midi);
       }
       const duplicateMidi = entries.map(([name]) => parseNote(name).midi).filter((midi, index, all) => all.indexOf(midi) !== index);
-      const unknownKeys = entries.flatMap(([, value]) => [ ...(value.keys || []), ...(value.alts || []).flatMap(alt => alt.keys) ]).filter(key => !KEY_LABEL[key] && key !== 'altF#');
+      const unknownKeys = entries.flatMap(([, value]) => [ ...(value.keys || []), ...(value.alts || []).flatMap(alt => alt.keys) ]).filter(key => !KEY_LABEL[key]);
       const rows = entries.map(([name, value]) => `<tr><td>${name}</td><td>${parseNote(name).midi}</td><td>${value.keys.join(' · ')}</td><td>${value.alts?.length || 0}</td></tr>`).join('');
       const pass = entries.length === expected && missing.length === 0 && duplicateMidi.length === 0 && unknownKeys.length === 0;
       document.getElementById('debug-output').innerHTML = `<p class="${pass ? 'ok' : 'warn'}">${pass ? 'PASS' : 'ตรวจพบข้อผิดพลาด'} · ${entries.length}/${expected} รายการ · missing ${missing.length} · duplicate ${duplicateMidi.length} · unknown key ${unknownKeys.length}</p><div class="debug-output"><table><thead><tr><th>โน้ต</th><th>MIDI</th><th>ปุ่มหลัก</th><th>alt</th></tr></thead><tbody>${rows}</tbody></table></div>`;
