@@ -132,6 +132,11 @@
     .note-row, .fingering-row { display: contents; }
     .note-cell, .fingering-cell { min-width: 76px; text-align: center; background: var(--panel); border-right: 1px solid var(--line); }
     .note-cell { min-height: 68px; padding: 11px 5px 8px; border-bottom: 1px solid var(--line); }
+    .note-cell { cursor: pointer; user-select: none; transition: background .16s ease, box-shadow .16s ease; }
+    .note-cell:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: -3px; }
+    .note-cell.selected, .fingering-cell.selected { background: var(--panel-soft); box-shadow: inset 0 0 0 3px var(--accent-strong); }
+    .note-cell.selected { position: relative; z-index: 2; }
+    .fingering-cell.selected { z-index: 2; }
     .note-cell strong { display: block; font-size: 1rem; line-height: 1.05; }
     .note-cell small { display: block; margin-top: 4px; color: var(--muted); font-size: .68rem; }
     .fingering-cell { min-height: 330px; padding: 7px 4px 10px; position: relative; }
@@ -148,6 +153,8 @@
     .fingering-svg .key-shape.optional.pressed { opacity: 1; stroke-dasharray: none; }
     .fingering-svg .key-shape.alias-pressed { fill: #f0a63c; stroke: #9b6213; }
     .fingering-svg .key-shape:hover, .fingering-svg .key-shape:focus-visible { stroke: var(--accent-strong); stroke-width: 3; }
+    .staff-note { cursor: pointer; }
+    .staff-note.selected { filter: drop-shadow(0 0 3px var(--accent-strong)); }
     .alt-button-wrap { min-height: 22px; }
     .alt-button { padding: 3px 7px; font-size: .67rem; color: var(--accent-strong); }
     .alternate-list { display: none; margin-top: 5px; text-align: left; padding: 7px; background: var(--panel-soft); border-radius: 8px; font-size: .68rem; }
@@ -427,7 +434,7 @@
       'F#6': { keys: ['oct','palmD','palmEb','palmF','highF#'], alts: [{ label: 'alt F#', keys: ['oct','palmD','palmEb','palmF','altF#'], note: 'ใช้แทน high F# เมื่อเครื่องไม่มีคีย์ high F# แยก' }] }
     };
 
-    const state = { key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false };
+    const state = { key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null };
 
     function parseNote(note) {
       const match = /^([A-G])([#b]?)(\d+)$/.exec(note);
@@ -555,6 +562,46 @@
 
     function rangeLabel(notes) { return notes.length ? `${notes[0].name} → ${notes[notes.length - 1].name}` : 'ไม่มีโน้ตในช่วงนี้'; }
 
+    function updateSelectedNote() {
+      const selectedIndex = state.selectedNoteIndex;
+      document.querySelectorAll('#scale-card [data-note-index]').forEach(element => {
+        const selected = Number(element.dataset.noteIndex) === selectedIndex;
+        element.classList.toggle('selected', selected);
+        element.setAttribute('aria-pressed', String(selected));
+      });
+      document.querySelectorAll('#staff .staff-note').forEach((element, index) => {
+        const selected = index === selectedIndex;
+        element.classList.toggle('selected', selected);
+        element.setAttribute('aria-pressed', String(selected));
+      });
+    }
+
+    function selectNote(index) {
+      state.selectedNoteIndex = state.selectedNoteIndex === index ? null : index;
+      updateSelectedNote();
+      if (state.selectedNoteIndex !== null) {
+        document.querySelector(`#scale-card .fingering-cell[data-note-index="${state.selectedNoteIndex}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+
+    function attachNoteCellEvents(notes) {
+      document.querySelectorAll('#scale-card .note-cell').forEach((cell, index) => {
+        cell.dataset.noteIndex = String(index);
+        cell.setAttribute('role', 'button');
+        cell.setAttribute('tabindex', '0');
+        cell.setAttribute('aria-pressed', 'false');
+        cell.setAttribute('aria-label', `Select note ${displayNoteName(notes[index].name)} to show fingering`);
+        cell.addEventListener('click', () => selectNote(index));
+        cell.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectNote(index);
+          }
+        });
+      });
+    }
+
     function modeAvailable(keyId, mode) {
       if (mode !== '2oct') return true;
       return twoOctaveStartOffset(keyId) !== null;
@@ -581,6 +628,7 @@
     }
 
     function renderScaleCard() {
+      state.selectedNoteIndex = null;
       const notes = buildScale(state.key, state.mode);
       const [modeTitle, modeDetail] = modeLabel(state.mode);
       const cellCount = notes.length;
@@ -596,6 +644,7 @@
         <p id="status-line" class="status-line"></p>`;
       // The aligned grid is deliberately generated as two explicit rows; it does not infer positions from abcjs.
       document.getElementById('status-line').textContent = state.mode === 'full' ? `full range: ${rangeLabel(notes)} · ตัดที่ ${state.highFsharp ? 'F#6' : 'F6'}` : `ช่วง ${modeTitle}: ${rangeLabel(notes)}`;
+      attachNoteCellEvents(notes);
       document.querySelectorAll('[data-alt-toggle]').forEach(button => button.addEventListener('click', () => button.closest('.fingering-cell').classList.toggle('show-alt')));
       renderStaff(state.key, notes);
     }
@@ -610,6 +659,24 @@
       try {
         target.innerHTML = '';
         window.ABCJS.renderAbc(target, buildAbc(keyId, notes), { responsive: 'resize', add_classes: true, paddingtop: 4, paddingbottom: 4 });
+        target.querySelectorAll('.abcjs-note').forEach((noteElement, index) => {
+          const note = notes[index];
+          if (!note) return;
+          noteElement.classList.add('staff-note');
+          noteElement.setAttribute('data-note-index', String(index));
+          noteElement.setAttribute('role', 'button');
+          noteElement.setAttribute('tabindex', '0');
+          noteElement.setAttribute('aria-pressed', 'false');
+          noteElement.setAttribute('aria-label', `Select note ${displayNoteName(note.name)} to show fingering`);
+          noteElement.addEventListener('click', () => selectNote(index));
+          noteElement.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              selectNote(index);
+            }
+          });
+        });
+        updateSelectedNote();
       } catch (error) {
         console.error(error);
         target.innerHTML = '<div class="staff-fallback">สร้าง staff ไม่สำเร็จ กรุณาเปิดหน้า debug เพื่อตรวจข้อมูล</div>';
