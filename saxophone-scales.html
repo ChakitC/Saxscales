@@ -669,8 +669,18 @@
       try {
         target.innerHTML = '';
         if (!document.documentElement.dataset.staffNoteEvents) {
+          const findStaffNote = event => {
+            const direct = event.target.closest?.('.staff-note');
+            if (direct) return direct;
+            if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return null;
+            return [...document.querySelectorAll('#staff .staff-note')].find(noteElement => {
+              const bounds = noteElement.getBoundingClientRect();
+              return event.clientX >= bounds.left - 8 && event.clientX <= bounds.right + 8
+                && event.clientY >= bounds.top - 8 && event.clientY <= bounds.bottom + 8;
+            }) || null;
+          };
           const interceptStaffNoteEvent = event => {
-            const noteElement = event.target.closest?.('.staff-note');
+            const noteElement = findStaffNote(event);
             if (!noteElement) return;
             event.stopImmediatePropagation();
             if (event.type === 'click') {
