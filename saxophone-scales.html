@@ -181,6 +181,15 @@
     .legend-dot.pressed { background: var(--pressed); border-color: var(--pressed-stroke); }
     .legend-dot.low { background: var(--pressed-low); border-color: var(--pressed-low-stroke); }
     .legend-dot.alt { background: #f0a63c; border-color: #9b6213; }
+    .playback-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; margin-top: 10px; }
+    .bpm-control { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+    .bpm-control button, .bpm-control input, .play-button { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 9px; }
+    .bpm-control button { width: 28px; height: 30px; padding: 0; font-size: 1rem; line-height: 1; }
+    .bpm-control button:hover, .bpm-control input:hover, .bpm-control input:focus { border-color: var(--accent); background: var(--accent-soft); }
+    .bpm-control input { width: 52px; height: 30px; padding: 3px 5px; text-align: center; font-size: .82rem; }
+    .play-button { min-width: 82px; height: 32px; padding: 4px 12px; background: var(--accent); border-color: var(--accent); color: white; font-weight: 700; }
+    .play-button:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+    .play-button:active { transform: translateY(1px); }
     .status-line { min-height: 24px; margin: 12px 0 0; color: var(--muted); font-size: .83rem; }
     .debug-card { margin-top: 18px; padding: 19px; }
     .debug-card h2 { margin-bottom: 4px; font-size: 1.15rem; }
@@ -453,7 +462,10 @@
       'F#6': { keys: ['oct','palmD','palmEb','palmF','sideE','highF#'], alts: [{ label: 'alt F#', keys: ['oct','frontF','A','sideBb'], note: 'ใช้แทน high F# เมื่อเครื่องไม่มีคีย์ high F# แยก' }] }
     };
 
-    const state = { key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null };
+    const state = {
+      key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null, bpm: 80,
+      playback: { timer: null, running: false, paused: false, index: null, completed: false, notes: [], deadline: 0, remainingMs: 0 }
+    };
 
     function parseNote(note) {
       const match = /^([A-G])([#b]?)(\d+)$/.exec(note);
@@ -579,6 +591,100 @@
 
     function rangeLabel(notes) { return notes.length ? `${notes[0].name} → ${notes[notes.length - 1].name}` : 'ไม่มีโน้ตในช่วงนี้'; }
 
+    function updatePlaybackControls() {
+      const button = document.getElementById('play-toggle');
+      const input = document.getElementById('bpm-input');
+      if (input) input.value = String(state.bpm);
+      if (!button) return;
+      const playback = state.playback;
+      button.textContent = playback.running ? 'Pause' : playback.paused ? 'Resume' : 'Play';
+      button.setAttribute('aria-pressed', String(playback.running));
+      button.setAttribute('aria-label', playback.running ? 'Pause scale playback' : playback.paused ? 'Resume scale playback' : 'Play scale');
+    }
+
+    function stopPlayback({ completed = false } = {}) {
+      const playback = state.playback;
+      if (playback.timer !== null) clearTimeout(playback.timer);
+      playback.timer = null;
+      playback.running = false;
+      playback.paused = false;
+      playback.completed = completed;
+      playback.remainingMs = 0;
+      if (!completed) playback.index = null;
+      updatePlaybackControls();
+    }
+
+    function schedulePlaybackAdvance(delay = 60000 / state.bpm) {
+      const playback = state.playback;
+      if (playback.timer !== null) clearTimeout(playback.timer);
+      playback.deadline = performance.now() + delay;
+      playback.remainingMs = delay;
+      playback.timer = setTimeout(advancePlayback, delay);
+    }
+
+    function advancePlayback() {
+      const playback = state.playback;
+      playback.timer = null;
+      playback.remainingMs = 0;
+      if (!playback.running) return;
+      if (playback.index >= playback.notes.length - 1) {
+        stopPlayback({ completed: true });
+        return;
+      }
+      playback.index += 1;
+      selectNote(playback.index, { fromPlayback: true, scroll: false });
+      schedulePlaybackAdvance();
+    }
+
+    function startPlayback() {
+      const notes = buildScale(state.key, state.mode);
+      if (!notes.length) return;
+      const playback = state.playback;
+      const startIndex = playback.completed ? 0 : (state.selectedNoteIndex !== null && notes[state.selectedNoteIndex] ? state.selectedNoteIndex : 0);
+      playback.notes = notes;
+      playback.index = startIndex;
+      playback.completed = false;
+      playback.paused = false;
+      playback.running = true;
+      selectNote(startIndex, { fromPlayback: true, scroll: false });
+      updatePlaybackControls();
+      schedulePlaybackAdvance();
+    }
+
+    function pausePlayback() {
+      const playback = state.playback;
+      if (!playback.running) return;
+      playback.remainingMs = Math.max(0, playback.deadline - performance.now());
+      if (playback.timer !== null) clearTimeout(playback.timer);
+      playback.timer = null;
+      playback.running = false;
+      playback.paused = true;
+      updatePlaybackControls();
+    }
+
+    function resumePlayback() {
+      const playback = state.playback;
+      if (!playback.paused || playback.index === null) return startPlayback();
+      playback.paused = false;
+      playback.running = true;
+      updatePlaybackControls();
+      schedulePlaybackAdvance(playback.remainingMs || 60000 / state.bpm);
+    }
+
+    function togglePlayback() {
+      if (state.playback.running) return pausePlayback();
+      if (state.playback.paused) return resumePlayback();
+      startPlayback();
+    }
+
+    function setBpm(value) {
+      if (value === '') return;
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return updatePlaybackControls();
+      state.bpm = Math.min(240, Math.max(40, Math.round(numeric)));
+      updatePlaybackControls();
+    }
+
     function updateSelectedNote() {
       const selectedIndex = state.selectedNoteIndex;
       document.querySelectorAll('#scale-card [data-note-index]').forEach(element => {
@@ -603,10 +709,11 @@
       });
     }
 
-    function selectNote(index) {
+    function selectNote(index, { fromPlayback = false, scroll = true } = {}) {
+      if (!fromPlayback) stopPlayback();
       state.selectedNoteIndex = index;
       updateSelectedNote();
-      if (state.selectedNoteIndex !== null) {
+      if (scroll && state.selectedNoteIndex !== null) {
         document.querySelector(`#scale-card .fingering-cell[data-note-index="${state.selectedNoteIndex}"]`)
           ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
@@ -663,6 +770,7 @@
     }
 
     function renderScaleCard() {
+      stopPlayback();
       state.selectedNoteIndex = null;
       const notes = buildScale(state.key, state.mode);
       const [modeTitle, modeDetail] = modeLabel(state.mode);
@@ -676,10 +784,14 @@
         <div class="staff-shell"><div id="staff" aria-label="โน้ตบนบรรทัด 5 เส้น">${fallback}</div></div>
         <div class="alignment-scroll" aria-label="โน้ตและ fingering ที่จัดแนวตรงกัน"><div class="alignment-grid" style="--note-count:${cellCount}"><div class="row-label">โน้ต</div><div class="note-row">${notes.map(() => '').join('')}</div>${notes.map(note => `<div class="note-cell"><strong>${displayNoteName(note.name)}</strong><small>${note.midi}</small></div>`).join('')}<div class="row-label">fingering</div><div class="fingering-row">${notes.map(() => '').join('')}</div>${notes.map((note, index) => { const fingering = getFingering(note.name); const alts = fingering.alts || []; const altHtml = alts.length ? `<button type="button" class="alt-button" data-alt-toggle="${index}">alternate</button><div class="alternate-list"><strong>${alts.map(alt => alt.label).join(' · ')}</strong>${alts.map(alt => `<span>${alt.keys.join(' · ')} — ${alt.note}</span>`).join('')}</div>` : '<span aria-hidden="true">&nbsp;</span>'; return `<div class="fingering-cell" data-note-index="${index}"><span class="note-index">${index + 1}</span>${renderSvg(fingering.keys)}<div class="alt-button-wrap">${altHtml}</div></div>`; }).join('')}</div></div>
         <div class="legend"><span class="legend-item"><i class="legend-dot pressed"></i> กด · main / upper</span><span class="legend-item"><i class="legend-dot low"></i> กด · pinky / table</span><span class="legend-item"><i class="legend-dot"></i> ไม่กด</span><span class="legend-item"><i class="legend-dot alt"></i> alternate / alias</span><span>เลื่อนแนวนอนบนมือถือเพื่อให้แถวโน้ตกับแถว fingering อยู่ตรงกัน</span></div>
+        <div class="playback-controls" aria-label="Scale playback controls"><label class="bpm-control" for="bpm-input">BPM <button type="button" data-bpm-step="-5" aria-label="Decrease BPM">-</button><input id="bpm-input" type="number" min="40" max="240" step="1" value="${state.bpm}" inputmode="numeric" aria-label="BPM"><button type="button" data-bpm-step="5" aria-label="Increase BPM">+</button></label><button id="play-toggle" class="play-button" type="button" aria-pressed="false" aria-label="Play scale">Play</button></div>
         <p id="status-line" class="status-line"></p>`;
       // The aligned grid is deliberately generated as two explicit rows; it does not infer positions from abcjs.
       document.getElementById('status-line').textContent = state.mode === 'full' ? `full range: ${rangeLabel(notes)} · ตัดที่ ${state.highFsharp ? 'F#6' : 'F6'}` : `ช่วง ${modeTitle}: ${rangeLabel(notes)}`;
       attachNoteCellEvents(notes);
+      document.getElementById('play-toggle').addEventListener('click', togglePlayback);
+      document.getElementById('bpm-input').addEventListener('input', event => setBpm(event.target.value));
+      document.querySelectorAll('[data-bpm-step]').forEach(button => button.addEventListener('click', () => setBpm(state.bpm + Number(button.dataset.bpmStep))));
       document.querySelectorAll('[data-alt-toggle]').forEach(button => button.addEventListener('click', () => button.closest('.fingering-cell').classList.toggle('show-alt')));
       renderStaff(state.key, notes);
     }
