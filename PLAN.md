@@ -174,7 +174,19 @@ P:\SaxScales\
 ## 9. เก็บไว้เป็น v2 (ตกลงกันแล้วว่าไม่ทำตอนนี้)
 
 - minor / harmonic minor / melodic minor / pentatonic / blues / chromatic — โครงข้อมูลรองรับแล้ว เพิ่มแค่สูตร
-- เสียงเล่นสเกล + metronome
-- โหมดทดสอบ (สุ่มโน้ต ทายนิ้ว)
 - เลือกนิ้ว Bb อัตโนมัติตามบริบทของสเกล (Q12 ตัวเลือก c)
 - รองรับ alto / soprano (เปลี่ยนแค่ transposition + ช่วงเสียง ตาราง fingering ใช้ร่วมกันได้)
+
+---
+
+## 10. โหมดฝึกซ้อม (สุ่มโน้ต ทายนิ้ว) — ทำแล้ว
+
+เพิ่มแท็บ `ดูสเกล | ฝึกซ้อม` เหนือพื้นที่เนื้อหาหลักใน `saxophone-scales.html` ไม่เพิ่ม dependency ใหม่ ไม่แตะ abcjs ที่ฝังไว้ ยังเปิด offline ได้เหมือนเดิม
+
+- **State**: `state.view` (`scale`/`practice`) และ `state.practice.{settings, session}` แยกจาก `state.playback` เดิมโดยสิ้นเชิง ไม่มี AudioContext ในโหมดนี้
+- **สำรับสุ่ม**: Fisher–Yates จาก `buildScale()` ทุกต้นรอบ ใช้ MIDI เต็มเป็นตัวระบุ สลับโน้ตแรกกับตำแหน่งอื่นถ้าตรงกับโน้ตสุดท้ายของรอบก่อน (`buildPracticeDeck`)
+- **Auto**: `เริ่ม → count-in 3-2-1 → แสดงโน้ต → เปลี่ยนตามเวลา (2/4/6/8s ค่าเริ่มต้น 4) → round-break → จบ` ใช้ `performance.now()` deadline-based timer, progress bar เปลี่ยนสีวินาทีสุดท้าย, resume เริ่มเวลาเต็มช่วงใหม่เสมอ
+- **Manual**: `เริ่ม → แสดงโน้ตทันที (ไม่มี count-in) → ก่อนหน้า/ถัดไป → เริ่มรอบถัดไป → จบ` ไม่สุ่มใหม่เมื่อกดย้อนกลับ (เก็บ deck ของทุกรอบไว้ใน `session.decks`)
+- **Lifecycle**: ล็อกการตั้งค่าหลังเริ่ม (settings screen ไม่แสดงระหว่าง session) · เปลี่ยน key/mode/high F# ล้าง session (`resetPracticeSession`) · สลับแท็บ/ซ่อนหน้าต่าง/print พักอัตโนมัติไม่เล่นต่อเอง (`pausePractice` ผูกกับ `visibilitychange`/`blur`/`beforeprint`) · คีย์ลัด Space/ArrowLeft/ArrowRight ปิดเมื่อ focus อยู่ใน input/select/button
+- **Rendering**: staff เดี่ยวผ่าน `buildAbc`/abcjs (`renderPracticeStaff`), fingering ผ่าน `renderSvg(keys, false, false)` — เพิ่มพารามิเตอร์ `interactive` ให้ปิด tabindex/role ต่อปุ่ม (กัน tab stop ท่วม) แล้วสรุปเป็น aria-label เดียวที่ `<svg>` แทน ไม่แสดง alternate fingering
+- **Print**: แก้ `print-all` ให้สร้าง `#print-all-area` ชั่วคราวแล้วซ่อนของเดิมด้วย CSS แทนการเขียนทับ `.content` (ของเดิมจะลบ tabs/practice-card ทิ้ง) — `.practice-card` ถูกซ่อนด้วย `@media print` เสมอ ไม่ปนกับ `.scale-card` ที่ reuse style ร่วมกัน

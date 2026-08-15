@@ -246,9 +246,10 @@
       body, [data-theme="dark"] { --bg: #fff; --panel: #fff; --panel-soft: #f5f5f5; --text: #000; --muted: #555; --line: #bbb; --pressed: #8f1738; --pressed-stroke: #631026; --pressed-low: #4d8f5b; --pressed-low-stroke: #2f633c; --open: #fff; --shadow: none; }
       body { background: #fff; }
       .app-shell { max-width: none; padding: 0; }
-      .topbar, .hero, .control-panel, .debug-card, footer, .legend, .status-line, .top-actions, .modal-backdrop { display: none !important; }
+      .topbar, .hero, .control-panel, .debug-card, footer, .legend, .status-line, .top-actions, .modal-backdrop, .view-tabs { display: none !important; }
       .workspace { display: block; margin: 0; }
       .scale-card { display: block !important; padding: 0; border: 0; box-shadow: none; overflow: visible; }
+      .scale-card.practice-card { display: none !important; }
       .scale-heading { margin-bottom: 7mm; }
       .staff-shell { min-height: 38mm; padding: 2mm; }
       #staff { min-height: 30mm; }
@@ -263,9 +264,41 @@
     }
     body.print-all .workspace { display: block; }
     body.print-all .control-panel, body.print-all .debug-card, body.print-all footer { display: none; }
-    body.print-all .content { display: grid; gap: 8mm; }
-    body.print-all .scale-card { break-after: page; page-break-after: always; }
-    body.print-all .scale-card:last-child { break-after: auto; page-break-after: auto; }
+    #print-all-area { display: none; }
+    body.print-all .content > *:not(#print-all-area) { display: none !important; }
+    body.print-all #print-all-area { display: grid; gap: 8mm; }
+    body.print-all #print-all-area .scale-card { break-after: page; page-break-after: always; }
+    body.print-all #print-all-area .scale-card:last-child { break-after: auto; page-break-after: auto; }
+
+    .view-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .view-tab { padding: 9px 16px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 11px; font-weight: 700; font-size: .88rem; }
+    .view-tab:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .view-tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .practice-settings { display: grid; gap: 4px; max-width: 480px; }
+    .practice-settings .control-block:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    #practice-start { margin-top: 18px; max-width: 260px; }
+    .practice-phase-banner { font-size: 1.15rem; font-weight: 700; text-align: center; margin-bottom: 12px; min-height: 1.4em; }
+    .practice-progress { display: flex; align-items: center; gap: 10px; max-width: 480px; margin: 0 auto 18px; }
+    .practice-progress-track { flex: 1; height: 10px; border-radius: 999px; background: var(--panel-soft); border: 1px solid var(--line); overflow: hidden; }
+    .practice-progress-fill { height: 100%; width: 0%; background: var(--accent); }
+    .practice-progress-fill.final-second { background: var(--note-focus); }
+    .practice-progress-text { min-width: 34px; text-align: right; color: var(--muted); font-size: .82rem; font-variant-numeric: tabular-nums; }
+    .practice-columns { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: 40px; min-height: 300px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-soft); }
+    .practice-columns .staff-shell { flex: 0 1 auto; min-width: 0; min-height: 200px; display: flex; align-items: center; justify-content: center; padding: 18px 22px; }
+    .practice-columns .staff-shell #practice-staff { display: block; }
+    .practice-fingering-shell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; flex: 0 0 auto; width: 220px; height: 560px; }
+    .practice-fingering-shell .fingering-svg { width: 220px; height: 560px; }
+    .practice-note-name { font-size: 2.2rem; font-weight: 800; min-height: 2.6rem; }
+    .practice-meta-row { margin-top: 16px; text-align: center; color: var(--muted); font-size: .85rem; }
+    .practice-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; align-items: center; }
+    .practice-controls .play-button { min-width: 120px; height: 42px; font-size: .95rem; }
+    @media (max-width: 720px) {
+      .practice-columns { flex-direction: column; min-height: 0; gap: 20px; padding: 16px; }
+      .practice-columns .staff-shell { width: 100%; min-height: 140px; padding: 10px; }
+      .practice-fingering-shell { width: 150px; height: 380px; }
+      .practice-fingering-shell .fingering-svg { width: 150px; height: 380px; }
+      .practice-note-name { font-size: 1.7rem; }
+    }
   </style>
 </head>
 <body>
@@ -323,7 +356,12 @@
       </aside>
 
       <main class="content">
+        <div class="view-tabs" role="tablist" aria-label="โหมดการแสดงผล">
+          <button id="tab-scale" class="view-tab" type="button" role="tab" aria-selected="true" aria-controls="scale-card">ดูสเกล</button>
+          <button id="tab-practice" class="view-tab" type="button" role="tab" aria-selected="false" aria-controls="practice-card">ฝึกซ้อม</button>
+        </div>
         <section id="scale-card" class="scale-card" aria-live="polite"></section>
+        <section id="practice-card" class="scale-card practice-card" aria-live="polite" hidden></section>
         <section id="debug-card" class="debug-card" hidden>
           <h2>หน้า debug: ตรวจข้อมูล fingering</h2>
           <p>ตรวจโน้ต chromatic ที่ไม่ซ้ำตั้งแต่ Bb3 ถึง F6 และตรวจคีย์ที่ถูกใช้ในแต่ละรายการจาก `FINGERINGS` map เดียวกับหน้าหลัก</p>
@@ -465,8 +503,12 @@
     };
 
     const state = {
-      key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null, bpm: 80,
-      playback: { timer: null, running: false, paused: false, countingIn: false, countIndex: 0, direction: 1, index: null, completed: false, notes: [], deadline: 0, remainingMs: 0, audioContext: null, audioSources: new Set() }
+      key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null, bpm: 80, view: 'scale',
+      playback: { timer: null, running: false, paused: false, countingIn: false, countIndex: 0, direction: 1, index: null, completed: false, notes: [], deadline: 0, remainingMs: 0, audioContext: null, audioSources: new Set() },
+      practice: {
+        settings: { autoMode: true, rounds: 1, seconds: 4, showNoteNames: false },
+        session: null
+      }
     };
 
     function parseNote(note) {
@@ -548,12 +590,13 @@
       return token;
     }
 
-    function buildAbc(keyId, notes) {
+    function buildAbc(keyId, notes, withTitle = true) {
       const body = notes.map(note => abcToken(note.name, keyId)).join(' ');
-      return `X:1\nT:${keyId} Major\nM:none\nL:1/4\nK:${KEY_INFO[keyId].abc}\n${body} |]`;
+      const titleLine = withTitle ? `T:${keyId} Major\n` : '';
+      return `X:1\n${titleLine}M:none\nL:1/4\nK:${KEY_INFO[keyId].abc}\n${body} |]`;
     }
 
-    function renderSvg(keys, compact = false) {
+    function renderSvg(keys, compact = false, interactive = true) {
       const pressed = new Set(keys || []);
       const viewBox = compact ? '0 0 120 145' : '0 0 120 455';
       const yScale = compact ? .31 : 1;
@@ -568,7 +611,9 @@
         if (item.id === 'highF#' && !state.highFsharp) classes.push('optional');
         if (isPressed) classes.push('pressed', lowKeys.has(item.id) ? 'pinky' : 'upper');
         const label = item.label;
-        const attributes = `class="${classes.join(' ')}" tabindex="0" role="button" aria-label="${label}: ${isPressed ? 'กด' : 'ไม่กด'}" aria-pressed="${isPressed}"`;
+        const attributes = interactive
+          ? `class="${classes.join(' ')}" tabindex="0" role="button" aria-label="${label}: ${isPressed ? 'กด' : 'ไม่กด'}" aria-pressed="${isPressed}"`
+          : `class="${classes.join(' ')}" aria-hidden="true"`;
         const transform = item.rotate ? ` transform="rotate(${item.rotate} ${x} ${y})"` : '';
         if (item.kind === 'frontF') {
           const lineStart = x - 28 * shapeScale;
@@ -588,7 +633,8 @@
       }).join('');
       const clusterMarkup = compact ? '' : `<g class="clusters" aria-hidden="true"><title>แยกกลุ่มปุ่ม palm, spatula, side และปุ่มนิ้วก้อยขวา</title><ellipse class="group-outline" cx="103" cy="88" rx="18" ry="42"></ellipse><ellipse class="group-outline" cx="35" cy="268" rx="12" ry="44"></ellipse><ellipse class="group-outline" cx="98" cy="246" rx="23" ry="34"></ellipse><ellipse class="group-outline" cx="42" cy="418" rx="22" ry="27"></ellipse></g>`;
       const shaftMarkup = compact ? `<line class="shaft" x1="58" y1="${mapY(62)}" x2="58" y2="${mapY(205)}"></line><line class="shaft" x1="58" y1="${mapY(236)}" x2="58" y2="${mapY(380)}"></line><line class="separator" x1="42" y1="${mapY(220)}" x2="75" y2="${mapY(220)}"></line>` : `<line class="shaft" x1="58" y1="62" x2="58" y2="205"></line><line class="shaft" x1="58" y1="236" x2="58" y2="380"></line><line class="separator" x1="42" y1="220" x2="75" y2="220"></line><text class="hand-label" x="58" y="57">LH</text><text class="hand-label" x="58" y="231">RH</text>`;
-      return `<svg class="fingering-svg" viewBox="${viewBox}" role="img" aria-label="แผนผัง fingering" preserveAspectRatio="xMidYMid meet">${clusterMarkup}${shaftMarkup}${points}</svg>`;
+      const summaryLabel = interactive ? 'แผนผัง fingering' : `แผนผัง fingering — ปุ่มที่ต้องกด: ${pressed.size ? [...pressed].map(id => KEY_LABEL[id] || id).join(', ') : 'ไม่กดปุ่มใด'}`;
+      return `<svg class="fingering-svg" viewBox="${viewBox}" role="img" aria-label="${summaryLabel}" preserveAspectRatio="xMidYMid meet">${clusterMarkup}${shaftMarkup}${points}</svg>`;
     }
 
     function rangeLabel(notes) { return notes.length ? `${notes[0].name} → ${notes[notes.length - 1].name}` : 'ไม่มีโน้ตในช่วงนี้'; }
@@ -1028,14 +1074,473 @@
       renderKeyButtons();
       renderModeButtons();
       renderScaleCard();
+      renderPracticeCard();
       document.getElementById('high-fsharp').checked = state.highFsharp;
+    }
+
+    // ---- Practice mode ----
+
+    function shuffleNotes(notes) {
+      const arr = notes.slice();
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function buildPracticeDeck(baseNotes, previousLastMidi) {
+      const deck = shuffleNotes(baseNotes);
+      if (deck.length > 1 && previousLastMidi != null && deck[0].midi === previousLastMidi) {
+        const swapIndex = 1 + Math.floor(Math.random() * (deck.length - 1));
+        [deck[0], deck[swapIndex]] = [deck[swapIndex], deck[0]];
+      }
+      return deck;
+    }
+
+    function practiceRoundsLabel(rounds) { return rounds === 'continuous' ? 'ต่อเนื่อง' : `${rounds} รอบ`; }
+
+    function practicePhaseText(session) {
+      switch (session.phase) {
+        case 'count-in': return `เตรียมตัว… ${session.countIndex}`;
+        case 'showing': return 'แสดงโน้ต';
+        case 'paused': return 'หยุดชั่วคราว';
+        case 'round-break': return session.autoMode ? `จบรอบที่ ${session.round} — กำลังไปรอบถัดไป` : `จบรอบที่ ${session.round} — กดเริ่มรอบถัดไป`;
+        case 'complete': return 'ฝึกซ้อมจบแล้ว';
+        default: return '';
+      }
+    }
+
+    function practiceShowsProgress(session) {
+      return session.autoMode && (session.phase === 'count-in' || session.phase === 'showing' || session.phase === 'round-break');
+    }
+
+    function practiceStartNextRound(session) {
+      const lastNote = session.decks[session.round - 1].slice(-1)[0];
+      const nextDeck = buildPracticeDeck(session.baseNotes, lastNote ? lastNote.midi : null);
+      session.decks.push(nextDeck);
+      session.round += 1;
+      session.position = 0;
+      session.phase = 'showing';
+    }
+
+    function schedulePracticeTimer(callback, delayMs) {
+      const session = state.practice.session;
+      if (!session) return;
+      if (session.timer !== null) clearTimeout(session.timer);
+      session.deadline = performance.now() + delayMs;
+      session.duration = delayMs;
+      session.timer = setTimeout(() => { session.timer = null; callback(); }, delayMs);
+      startPracticeProgressLoop();
+    }
+
+    function startPracticeProgressLoop() {
+      stopPracticeProgressLoop();
+      const session = state.practice.session;
+      if (!session) return;
+      const step = () => {
+        const current = state.practice.session;
+        if (!current || current.timer === null) { if (current) current.raf = null; return; }
+        updatePracticeProgress();
+        current.raf = requestAnimationFrame(step);
+      };
+      session.raf = requestAnimationFrame(step);
+    }
+
+    function stopPracticeProgressLoop() {
+      const session = state.practice.session;
+      if (session && session.raf !== null) {
+        cancelAnimationFrame(session.raf);
+        session.raf = null;
+      }
+    }
+
+    function updatePracticeProgress() {
+      const session = state.practice.session;
+      const fill = document.getElementById('practice-progress-fill');
+      const text = document.getElementById('practice-progress-text');
+      if (!session || !fill || !text || !session.duration) return;
+      const remaining = Math.max(0, session.deadline - performance.now());
+      const ratio = 1 - remaining / session.duration;
+      fill.style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+      fill.classList.toggle('final-second', remaining <= 1000);
+      text.textContent = `${Math.max(0, Math.ceil(remaining / 1000))}s`;
+    }
+
+    function startPracticeCountIn() {
+      const session = state.practice.session;
+      session.phase = 'count-in';
+      session.countIndex = 1;
+      renderPracticeCard();
+      schedulePracticeTimer(advancePracticeCountIn, 1000);
+    }
+
+    function advancePracticeCountIn() {
+      const session = state.practice.session;
+      if (!session || session.phase !== 'count-in') return;
+      if (session.countIndex >= 3) {
+        session.phase = 'showing';
+        renderPracticeCard();
+        schedulePracticeTimer(advancePracticeAuto, session.seconds * 1000);
+        return;
+      }
+      session.countIndex += 1;
+      renderPracticeCard();
+      schedulePracticeTimer(advancePracticeCountIn, 1000);
+    }
+
+    function advancePracticeAuto() {
+      const session = state.practice.session;
+      if (!session || !session.autoMode) return;
+      if (session.phase === 'showing') {
+        const deck = session.decks[session.round - 1];
+        if (session.position < deck.length - 1) {
+          session.position += 1;
+          renderPracticeCard();
+          schedulePracticeTimer(advancePracticeAuto, session.seconds * 1000);
+          return;
+        }
+        if (session.rounds !== 'continuous' && session.round >= session.rounds) {
+          session.phase = 'complete';
+          renderPracticeCard();
+          return;
+        }
+        session.phase = 'round-break';
+        renderPracticeCard();
+        schedulePracticeTimer(advancePracticeAuto, session.seconds * 1000);
+        return;
+      }
+      if (session.phase === 'round-break') {
+        practiceStartNextRound(session);
+        renderPracticeCard();
+        schedulePracticeTimer(advancePracticeAuto, session.seconds * 1000);
+      }
+    }
+
+    function pausePractice() {
+      const session = state.practice.session;
+      if (!session || !session.autoMode) return;
+      if (session.phase !== 'count-in' && session.phase !== 'showing' && session.phase !== 'round-break') return;
+      if (session.timer !== null) clearTimeout(session.timer);
+      session.timer = null;
+      stopPracticeProgressLoop();
+      session.pausedPhase = session.phase;
+      session.phase = 'paused';
+      renderPracticeCard();
+    }
+
+    function resumePractice() {
+      const session = state.practice.session;
+      if (!session || session.phase !== 'paused') return;
+      const restoredPhase = session.pausedPhase;
+      session.phase = restoredPhase;
+      session.pausedPhase = null;
+      renderPracticeCard();
+      const duration = restoredPhase === 'count-in' ? 1000 : session.seconds * 1000;
+      schedulePracticeTimer(restoredPhase === 'count-in' ? advancePracticeCountIn : advancePracticeAuto, duration);
+    }
+
+    function practiceManualNext() {
+      const session = state.practice.session;
+      if (!session || session.autoMode) return;
+      if (session.phase === 'showing') {
+        const deck = session.decks[session.round - 1];
+        if (session.position < deck.length - 1) {
+          session.position += 1;
+          renderPracticeCard();
+          return;
+        }
+        if (session.rounds !== 'continuous' && session.round >= session.rounds) {
+          session.phase = 'complete';
+          renderPracticeCard();
+          return;
+        }
+        session.phase = 'round-break';
+        renderPracticeCard();
+        return;
+      }
+      if (session.phase === 'round-break') {
+        practiceStartNextRound(session);
+        renderPracticeCard();
+      }
+    }
+
+    function practiceManualPrev() {
+      const session = state.practice.session;
+      if (!session || session.autoMode) return;
+      if (session.phase === 'complete' || session.phase === 'round-break') {
+        session.phase = 'showing';
+        renderPracticeCard();
+        return;
+      }
+      if (session.phase === 'showing') {
+        if (session.position > 0) {
+          session.position -= 1;
+          renderPracticeCard();
+          return;
+        }
+        if (session.round > 1) {
+          session.round -= 1;
+          session.position = session.decks[session.round - 1].length - 1;
+          renderPracticeCard();
+        }
+      }
+    }
+
+    function resetPracticeSession() {
+      const session = state.practice.session;
+      if (session) {
+        if (session.timer !== null) clearTimeout(session.timer);
+        stopPracticeProgressLoop();
+      }
+      state.practice.session = null;
+      renderPracticeCard();
+    }
+
+    function startPracticeSession() {
+      const baseNotes = buildScale(state.key, state.mode);
+      if (!baseNotes.length) return;
+      const settings = state.practice.settings;
+      const deck = buildPracticeDeck(baseNotes, null);
+      state.practice.session = {
+        autoMode: settings.autoMode,
+        rounds: settings.rounds,
+        seconds: settings.seconds,
+        baseNotes,
+        decks: [deck],
+        round: 1,
+        position: 0,
+        phase: settings.autoMode ? 'count-in' : 'showing',
+        pausedPhase: null,
+        countIndex: 0,
+        timer: null,
+        deadline: 0,
+        duration: 0,
+        raf: null
+      };
+      if (settings.autoMode) startPracticeCountIn();
+      else renderPracticeCard();
+    }
+
+    function renderPracticeStaff(note) {
+      const target = document.getElementById('practice-staff');
+      if (!target) return;
+      if (!window.ABCJS || typeof window.ABCJS.renderAbc !== 'function') {
+        target.innerHTML = '<div class="staff-fallback">ไม่พบ abcjs ที่ฝังไว้</div>';
+        return;
+      }
+      try {
+        target.removeAttribute('style');
+        target.innerHTML = '';
+        window.ABCJS.renderAbc(target, buildAbc(state.key, [note], false), { staffwidth: 110, scale: 2.5, paddingtop: 4, paddingbottom: 4, paddingleft: 4, paddingright: 4 });
+        const svg = target.querySelector('svg');
+        if (svg) {
+          const naturalWidth = parseFloat(svg.getAttribute('width')) || 0;
+          const naturalHeight = parseFloat(svg.getAttribute('height')) || 0;
+          const scaleMatch = /scale\(([\d.]+)/.exec(svg.getAttribute('style') || '');
+          const appliedScale = scaleMatch ? Number(scaleMatch[1]) : 1;
+          const fullWidth = naturalWidth * appliedScale;
+          const fullHeight = naturalHeight * appliedScale;
+          const shell = target.parentElement;
+          const columns = shell.closest('.practice-columns') || shell;
+          const fingeringShell = columns.querySelector('.practice-fingering-shell');
+          const shellCS = getComputedStyle(shell);
+          const columnsCS = getComputedStyle(columns);
+          const shellPaddingH = parseFloat(shellCS.paddingLeft) + parseFloat(shellCS.paddingRight);
+          const shellPaddingV = parseFloat(shellCS.paddingTop) + parseFloat(shellCS.paddingBottom);
+          const columnsPaddingH = parseFloat(columnsCS.paddingLeft) + parseFloat(columnsCS.paddingRight);
+          const columnsPaddingV = parseFloat(columnsCS.paddingTop) + parseFloat(columnsCS.paddingBottom);
+          const gap = parseFloat(columnsCS.columnGap) || 0;
+          const isRow = columnsCS.flexDirection.indexOf('column') === -1;
+          const fingeringWidth = isRow && fingeringShell ? fingeringShell.getBoundingClientRect().width : 0;
+          const fingeringHeight = !isRow && fingeringShell ? fingeringShell.getBoundingClientRect().height : 0;
+          const availableWidth = Math.max(0, columns.clientWidth - columnsPaddingH - shellPaddingH - (fingeringWidth ? fingeringWidth + gap : 0));
+          const availableHeight = Math.max(0, columns.clientHeight - columnsPaddingV - shellPaddingV - (fingeringHeight ? fingeringHeight + gap : 0));
+          const fitScale = Math.min(1, fullWidth > 0 ? availableWidth / fullWidth : 1, fullHeight > 0 ? availableHeight / fullHeight : 1);
+          svg.style.transform = `scale(${appliedScale * fitScale})`;
+          target.style.width = `${fullWidth * fitScale}px`;
+          target.style.height = `${fullHeight * fitScale}px`;
+          target.style.overflow = 'hidden';
+          target.style.margin = '0 auto';
+        }
+      } catch (error) {
+        console.error(error);
+        target.innerHTML = '<div class="staff-fallback">สร้าง staff ไม่สำเร็จ</div>';
+      }
+    }
+
+    function updatePracticeNoteName(session) {
+      const el = document.getElementById('practice-note-name');
+      if (!el) return;
+      const deck = session.decks[session.round - 1];
+      const note = deck[Math.min(session.position, deck.length - 1)];
+      el.textContent = state.practice.settings.showNoteNames && note ? displayNoteName(note.name) : '';
+    }
+
+    function renderPracticeStage(session) {
+      const deck = session.decks[session.round - 1];
+      const note = deck[Math.min(session.position, deck.length - 1)];
+      if (!note) return;
+      if (session.phase === 'count-in') {
+        document.getElementById('practice-staff').innerHTML = '';
+        document.getElementById('practice-fingering').innerHTML = '';
+        document.getElementById('practice-note-name').textContent = '';
+        return;
+      }
+      renderPracticeStaff(note);
+      const fingering = getFingering(note.name);
+      document.getElementById('practice-fingering').innerHTML = renderSvg(fingering.keys, false, false);
+      updatePracticeNoteName(session);
+    }
+
+    function renderPracticeSettingsHtml(settings) {
+      return `
+        <div class="practice-settings">
+          <div class="control-block">
+            <span class="control-label">โหมด</span>
+            <div class="mode-select" role="group" aria-label="โหมด">
+              <button type="button" class="mode-button" data-practice-set="autoMode" data-value="true" aria-pressed="${settings.autoMode}"><span>Auto</span><small>เดินอัตโนมัติตามเวลา</small></button>
+              <button type="button" class="mode-button" data-practice-set="autoMode" data-value="false" aria-pressed="${!settings.autoMode}"><span>Manual</span><small>กดถัดไปเอง</small></button>
+            </div>
+          </div>
+          <div class="control-block">
+            <span class="control-label">จำนวนรอบ</span>
+            <div class="mode-select" role="group" aria-label="จำนวนรอบ">
+              ${[1, 2, 'continuous'].map(r => `<button type="button" class="mode-button" data-practice-set="rounds" data-value="${r}" aria-pressed="${settings.rounds === r}">${practiceRoundsLabel(r)}</button>`).join('')}
+            </div>
+          </div>
+          <div class="control-block" ${settings.autoMode ? '' : 'hidden'}>
+            <span class="control-label">เวลาต่อโน้ต (Auto)</span>
+            <div class="mode-select" role="group" aria-label="เวลาต่อโน้ต">
+              ${[2, 4, 6, 8].map(s => `<button type="button" class="mode-button" data-practice-set="seconds" data-value="${s}" aria-pressed="${settings.seconds === s}">${s} วินาที</button>`).join('')}
+            </div>
+          </div>
+          <div class="control-block">
+            <label class="check-row"><input id="practice-shownames" type="checkbox" ${settings.showNoteNames ? 'checked' : ''}> <span>แสดงชื่อโน้ต</span></label>
+          </div>
+          <button id="practice-start" class="text-button" type="button">เริ่มฝึกซ้อม</button>
+        </div>`;
+    }
+
+    function renderPracticeControlsHtml(session) {
+      const buttons = [];
+      if (session.phase === 'complete') {
+        buttons.push('<button type="button" class="play-button" id="practice-restart">เริ่มใหม่</button>');
+        buttons.push('<button type="button" class="text-button" id="practice-change-settings" style="width:auto">เปลี่ยนการตั้งค่า</button>');
+        return buttons.join('');
+      }
+      if (session.autoMode) {
+        if (session.phase === 'paused') buttons.push('<button type="button" class="play-button" id="practice-resume">Resume</button>');
+        else buttons.push('<button type="button" class="play-button" id="practice-pause">Pause</button>');
+      } else {
+        const prevDisabled = session.phase === 'showing' && session.position === 0 && session.round === 1;
+        buttons.push(`<button type="button" class="play-button" id="practice-prev" ${prevDisabled ? 'disabled' : ''}>ก่อนหน้า</button>`);
+        const nextLabel = session.phase === 'round-break' ? 'เริ่มรอบถัดไป' : 'ถัดไป';
+        buttons.push(`<button type="button" class="play-button" id="practice-next">${nextLabel}</button>`);
+      }
+      buttons.push('<button type="button" class="text-button" id="practice-stop" style="width:auto">หยุด</button>');
+      return buttons.join('');
+    }
+
+    function renderPracticeSessionHtml(session, settings) {
+      const showProgress = practiceShowsProgress(session);
+      const deck = session.decks[session.round - 1];
+      const roundsLabel = session.rounds === 'continuous' ? '' : ` / ${session.rounds}`;
+      const metaRow = session.phase === 'complete'
+        ? `จบทั้งหมด ${session.round} รอบ`
+        : `รอบที่ ${session.round}${roundsLabel} · โน้ตที่ ${Math.min(session.position + 1, deck.length)}/${deck.length}`;
+      return `
+        <div class="practice-session">
+          <div class="practice-phase-banner">${practicePhaseText(session)}</div>
+          <div class="practice-progress" ${showProgress ? '' : 'hidden'}>
+            <div class="practice-progress-track"><div id="practice-progress-fill" class="practice-progress-fill"></div></div>
+            <span id="practice-progress-text" class="practice-progress-text"></span>
+          </div>
+          <div class="practice-columns">
+            <div class="staff-shell"><div id="practice-staff" aria-label="โน้ตบนบรรทัด 5 เส้น"></div></div>
+            <div class="practice-fingering-shell">
+              <div id="practice-fingering"></div>
+              <div id="practice-note-name" class="practice-note-name"></div>
+            </div>
+          </div>
+          <p class="practice-meta-row">${metaRow}</p>
+          <div class="practice-controls">${renderPracticeControlsHtml(session)}</div>
+          <div class="control-block"><label class="check-row"><input id="practice-shownames" type="checkbox" ${settings.showNoteNames ? 'checked' : ''}> <span>แสดงชื่อโน้ต</span></label></div>
+        </div>`;
+    }
+
+    function attachPracticeSettingsEvents() {
+      document.querySelectorAll('#practice-card [data-practice-set]').forEach(button => {
+        button.addEventListener('click', () => {
+          const field = button.dataset.practiceSet;
+          let value = button.dataset.value;
+          if (field === 'autoMode') value = value === 'true';
+          else if (field === 'rounds') value = value === 'continuous' ? 'continuous' : Number(value);
+          else if (field === 'seconds') value = Number(value);
+          state.practice.settings[field] = value;
+          renderPracticeCard();
+        });
+      });
+      const checkbox = document.getElementById('practice-shownames');
+      if (checkbox) checkbox.addEventListener('change', event => { state.practice.settings.showNoteNames = event.target.checked; renderPracticeCard(); });
+      const startButton = document.getElementById('practice-start');
+      if (startButton) startButton.addEventListener('click', startPracticeSession);
+    }
+
+    function attachPracticeSessionEvents(session) {
+      document.getElementById('practice-pause')?.addEventListener('click', pausePractice);
+      document.getElementById('practice-resume')?.addEventListener('click', resumePractice);
+      document.getElementById('practice-prev')?.addEventListener('click', practiceManualPrev);
+      document.getElementById('practice-next')?.addEventListener('click', practiceManualNext);
+      document.getElementById('practice-stop')?.addEventListener('click', resetPracticeSession);
+      document.getElementById('practice-restart')?.addEventListener('click', startPracticeSession);
+      document.getElementById('practice-change-settings')?.addEventListener('click', resetPracticeSession);
+      const checkbox = document.getElementById('practice-shownames');
+      if (checkbox) checkbox.addEventListener('change', event => { state.practice.settings.showNoteNames = event.target.checked; updatePracticeNoteName(session); });
+    }
+
+    function renderPracticeCard() {
+      const card = document.getElementById('practice-card');
+      if (!card) return;
+      const settings = state.practice.settings;
+      const session = state.practice.session;
+      const baseNotes = buildScale(state.key, state.mode);
+      const header = `
+        <div class="scale-heading">
+          <div><h2>ฝึกซ้อม — ${state.key} Major</h2><p>สุ่มโน้ตจากสเกลปัจจุบันเพื่อฝึกอ่านโน้ตและจับนิ้ว</p></div>
+          <div class="scale-meta"><span class="pill"><strong>${modeLabel(state.mode)[0]}</strong></span></div>
+        </div>`;
+      if (!baseNotes.length) {
+        card.innerHTML = header + '<p class="status-line">คีย์/ช่วงเสียงนี้ไม่มีโน้ตให้ฝึกซ้อม กรุณาเลือกคีย์หรือช่วงเสียงอื่น</p>';
+        return;
+      }
+      if (!session) {
+        card.innerHTML = header + renderPracticeSettingsHtml(settings);
+        attachPracticeSettingsEvents();
+        return;
+      }
+      card.innerHTML = header + renderPracticeSessionHtml(session, settings);
+      attachPracticeSessionEvents(session);
+      renderPracticeStage(session);
+    }
+
+    function setView(view) {
+      if (state.view === view) return;
+      if (state.view === 'scale') stopPlayback();
+      if (state.view === 'practice') pausePractice();
+      state.view = view;
+      document.getElementById('scale-card').hidden = view !== 'scale';
+      document.getElementById('practice-card').hidden = view !== 'practice';
+      document.getElementById('tab-scale').setAttribute('aria-selected', String(view === 'scale'));
+      document.getElementById('tab-practice').setAttribute('aria-selected', String(view === 'practice'));
+      if (view === 'practice') renderPracticeCard();
     }
 
     document.addEventListener('click', event => {
       const keyButton = event.target.closest('[data-key]');
-      if (keyButton && keyButton.closest('#key-grid')) { state.key = keyButton.dataset.key; updateAll(); }
+      if (keyButton && keyButton.closest('#key-grid')) { state.key = keyButton.dataset.key; resetPracticeSession(); updateAll(); }
       const modeButton = event.target.closest('[data-mode]');
-      if (modeButton && !modeButton.disabled) { state.mode = modeButton.dataset.mode; renderModeButtons(); renderScaleCard(); }
+      if (modeButton && !modeButton.disabled) { state.mode = modeButton.dataset.mode; resetPracticeSession(); renderModeButtons(); renderScaleCard(); }
       if (event.target.closest('#close-debug')) document.getElementById('debug-card').hidden = true;
       if (event.target.closest('#run-debug')) buildDebugTable();
     });
@@ -1048,15 +1553,70 @@
       event.currentTarget.dataset.tooltip = collapsed ? 'Open controls' : 'Collapse controls';
       event.currentTarget.textContent = collapsed ? '›' : '‹';
     });
-    document.getElementById('note-name-toggle').addEventListener('click', event => { state.doReMi = !state.doReMi; event.currentTarget.textContent = state.doReMi ? 'Do' : 'A'; renderScaleCard(); });
-    document.getElementById('high-fsharp').addEventListener('change', event => { state.highFsharp = event.target.checked; if (!modeAvailable(state.key, state.mode)) state.mode = 'full'; updateAll(); });
+    document.getElementById('note-name-toggle').addEventListener('click', event => { state.doReMi = !state.doReMi; event.currentTarget.textContent = state.doReMi ? 'Do' : 'A'; renderScaleCard(); renderPracticeCard(); });
+    document.getElementById('high-fsharp').addEventListener('change', event => { state.highFsharp = event.target.checked; if (!modeAvailable(state.key, state.mode)) state.mode = 'full'; resetPracticeSession(); updateAll(); });
     document.getElementById('print-current').addEventListener('click', () => { state.printAll = false; document.body.classList.remove('print-all'); window.print(); });
-    document.getElementById('print-all').addEventListener('click', () => { state.printAll = true; document.body.classList.add('print-all'); const current = state.key; const currentMode = state.mode; const debugCard = document.getElementById('debug-card'); const debugMarkup = debugCard ? debugCard.outerHTML : ''; const cards = []; KEY_ORDER.forEach(key => { state.key = key; state.mode = '1oct'; renderScaleCard(); cards.push(document.getElementById('scale-card').outerHTML); }); document.querySelector('.content').innerHTML = cards.join('') + debugMarkup; window.print(); setTimeout(() => { state.key = current; state.mode = currentMode; state.printAll = false; document.body.classList.remove('print-all'); updateAll(); }, 500); });
+    document.getElementById('print-all').addEventListener('click', () => {
+      state.printAll = true;
+      document.body.classList.add('print-all');
+      const current = state.key;
+      const currentMode = state.mode;
+      const area = document.createElement('div');
+      area.id = 'print-all-area';
+      KEY_ORDER.forEach(key => {
+        state.key = key;
+        state.mode = '1oct';
+        renderScaleCard();
+        const clone = document.getElementById('scale-card').cloneNode(true);
+        clone.removeAttribute('id');
+        area.appendChild(clone);
+      });
+      document.querySelector('.content').appendChild(area);
+      window.print();
+      setTimeout(() => {
+        area.remove();
+        state.key = current;
+        state.mode = currentMode;
+        state.printAll = false;
+        document.body.classList.remove('print-all');
+        updateAll();
+      }, 500);
+    });
     document.getElementById('open-debug').addEventListener('click', () => { const card = document.getElementById('debug-card'); card.hidden = false; buildDebugTable(); card.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     document.getElementById('open-map').addEventListener('click', () => { buildLargeMap(); document.getElementById('map-modal').classList.add('open'); });
     document.getElementById('close-map').addEventListener('click', () => document.getElementById('map-modal').classList.remove('open'));
     document.getElementById('map-modal').addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.classList.remove('open'); });
     window.addEventListener('afterprint', () => { if (state.printAll) { state.printAll = false; document.body.classList.remove('print-all'); updateAll(); } });
+
+    document.getElementById('tab-scale').addEventListener('click', () => setView('scale'));
+    document.getElementById('tab-practice').addEventListener('click', () => setView('practice'));
+
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pausePractice(); });
+    window.addEventListener('blur', () => pausePractice());
+    window.addEventListener('beforeprint', () => pausePractice());
+
+    document.addEventListener('keydown', event => {
+      const target = event.target;
+      const isFormField = target && /^(INPUT|SELECT|BUTTON)$/.test(target.tagName);
+      if (isFormField) return;
+      if (state.view !== 'practice' || !state.practice.session) return;
+      const session = state.practice.session;
+      if (event.key === ' ') {
+        event.preventDefault();
+        if (session.autoMode) {
+          if (session.phase === 'paused') resumePractice();
+          else if (session.phase !== 'complete') pausePractice();
+        } else {
+          practiceManualNext();
+        }
+      } else if (!session.autoMode && event.key === 'ArrowRight') {
+        event.preventDefault();
+        practiceManualNext();
+      } else if (!session.autoMode && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        practiceManualPrev();
+      }
+    });
 
     applyTheme('light');
     updateAll();
