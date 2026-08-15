@@ -577,12 +577,12 @@
       return solfege + accidentalText + octave;
     }
 
-    function abcToken(noteName, keyId) {
+    function abcToken(noteName, keyId, forceAccidental = false) {
       const { letter, accidental, octave } = parseNote(noteName);
       const defaultAccidental = KEY_SIGNATURES[keyId][letter] || '';
       let prefix = '';
-      if (accidental === '#' && defaultAccidental !== '#') prefix = '^';
-      if (accidental === 'b' && defaultAccidental !== 'b') prefix = '_';
+      if (accidental === '#' && (forceAccidental || defaultAccidental !== '#')) prefix = '^';
+      if (accidental === 'b' && (forceAccidental || defaultAccidental !== 'b')) prefix = '_';
       if (!accidental && defaultAccidental) prefix = '=';
       let token = prefix + (octave <= 4 ? letter : letter.toLowerCase());
       if (octave < 4) token += ','.repeat(4 - octave);
@@ -590,8 +590,8 @@
       return token;
     }
 
-    function buildAbc(keyId, notes, withTitle = true) {
-      const body = notes.map(note => abcToken(note.name, keyId)).join(' ');
+    function buildAbc(keyId, notes, withTitle = true, forceAccidental = false) {
+      const body = notes.map(note => abcToken(note.name, keyId, forceAccidental)).join(' ');
       const titleLine = withTitle ? `T:${keyId} Major\n` : '';
       return `X:1\n${titleLine}M:none\nL:1/4\nK:${KEY_INFO[keyId].abc}\n${body} |]`;
     }
@@ -1332,7 +1332,7 @@
       try {
         target.removeAttribute('style');
         target.innerHTML = '';
-        window.ABCJS.renderAbc(target, buildAbc(state.key, [note], false), { staffwidth: 110, scale: 2.5, paddingtop: 4, paddingbottom: 4, paddingleft: 4, paddingright: 4 });
+        window.ABCJS.renderAbc(target, buildAbc(state.key, [note], false, true), { staffwidth: 110, scale: 2.5, paddingtop: 4, paddingbottom: 4, paddingleft: 4, paddingright: 4 });
         const svg = target.querySelector('svg');
         if (svg) {
           const naturalWidth = parseFloat(svg.getAttribute('width')) || 0;
