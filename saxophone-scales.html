@@ -314,6 +314,7 @@
       <div class="top-actions">
         <button id="note-name-toggle" class="icon-button" type="button" data-tooltip="สลับชื่อโน้ต A-B-C / Do-Re-Mi" aria-label="สลับชื่อโน้ต">A</button>
         <button id="theme-toggle" class="icon-button" type="button" data-tooltip="สลับ light / dark" aria-label="สลับธีม">☾</button>
+        <button id="fullscreen-toggle" class="icon-button" type="button" data-tooltip="เต็มจอ" aria-label="เต็มจอ" hidden>⛶</button>
         <button id="print-current" class="icon-button" type="button" data-tooltip="พิมพ์คีย์ที่เปิดอยู่" aria-label="พิมพ์คีย์ที่เปิดอยู่">⎙</button>
       </div>
     </header>
@@ -506,7 +507,7 @@
       key: 'C', mode: '1oct', highFsharp: false, doReMi: false, printAll: false, selectedNoteIndex: null, bpm: 80, view: 'scale',
       playback: { timer: null, running: false, paused: false, countingIn: false, countIndex: 0, direction: 1, index: null, completed: false, notes: [], deadline: 0, remainingMs: 0, audioContext: null, audioSources: new Set() },
       practice: {
-        settings: { autoMode: true, rounds: 1, seconds: 4, showNoteNames: false },
+        settings: { autoMode: true, rounds: 1, seconds: 4, showNoteNames: false, showFingering: true },
         session: null
       }
     };
@@ -1377,6 +1378,15 @@
       el.textContent = state.practice.settings.showNoteNames && note ? displayNoteName(note.name) : '';
     }
 
+    function updatePracticeFingering(session) {
+      const el = document.getElementById('practice-fingering');
+      if (!el) return;
+      if (!state.practice.settings.showFingering) { el.innerHTML = ''; return; }
+      const deck = session.decks[session.round - 1];
+      const note = deck[Math.min(session.position, deck.length - 1)];
+      el.innerHTML = note ? renderSvg(getFingering(note.name).keys, false, false) : '';
+    }
+
     function renderPracticeStage(session) {
       const deck = session.decks[session.round - 1];
       const note = deck[Math.min(session.position, deck.length - 1)];
@@ -1388,8 +1398,7 @@
         return;
       }
       renderPracticeStaff(note);
-      const fingering = getFingering(note.name);
-      document.getElementById('practice-fingering').innerHTML = renderSvg(fingering.keys, false, false);
+      updatePracticeFingering(session);
       updatePracticeNoteName(session);
     }
 
@@ -1417,6 +1426,7 @@
           </div>
           <div class="control-block">
             <label class="check-row"><input id="practice-shownames" type="checkbox" ${settings.showNoteNames ? 'checked' : ''}> <span>แสดงชื่อโน้ต</span></label>
+            <label class="check-row"><input id="practice-showfingering" type="checkbox" ${settings.showFingering ? 'checked' : ''}> <span>แสดง fingering</span></label>
           </div>
           <button id="practice-start" class="text-button" type="button">เริ่มฝึกซ้อม</button>
         </div>`;
@@ -1465,7 +1475,10 @@
           </div>
           <p class="practice-meta-row">${metaRow}</p>
           <div class="practice-controls">${renderPracticeControlsHtml(session)}</div>
-          <div class="control-block"><label class="check-row"><input id="practice-shownames" type="checkbox" ${settings.showNoteNames ? 'checked' : ''}> <span>แสดงชื่อโน้ต</span></label></div>
+          <div class="control-block">
+            <label class="check-row"><input id="practice-shownames" type="checkbox" ${settings.showNoteNames ? 'checked' : ''}> <span>แสดงชื่อโน้ต</span></label>
+            <label class="check-row"><input id="practice-showfingering" type="checkbox" ${settings.showFingering ? 'checked' : ''}> <span>แสดง fingering</span></label>
+          </div>
         </div>`;
     }
 
@@ -1483,6 +1496,8 @@
       });
       const checkbox = document.getElementById('practice-shownames');
       if (checkbox) checkbox.addEventListener('change', event => { state.practice.settings.showNoteNames = event.target.checked; renderPracticeCard(); });
+      const fingeringCheckbox = document.getElementById('practice-showfingering');
+      if (fingeringCheckbox) fingeringCheckbox.addEventListener('change', event => { state.practice.settings.showFingering = event.target.checked; renderPracticeCard(); });
       const startButton = document.getElementById('practice-start');
       if (startButton) startButton.addEventListener('click', startPracticeSession);
     }
@@ -1497,6 +1512,8 @@
       document.getElementById('practice-change-settings')?.addEventListener('click', resetPracticeSession);
       const checkbox = document.getElementById('practice-shownames');
       if (checkbox) checkbox.addEventListener('change', event => { state.practice.settings.showNoteNames = event.target.checked; updatePracticeNoteName(session); });
+      const fingeringCheckbox = document.getElementById('practice-showfingering');
+      if (fingeringCheckbox) fingeringCheckbox.addEventListener('change', event => { state.practice.settings.showFingering = event.target.checked; updatePracticeFingering(session); });
     }
 
     function renderPracticeCard() {
@@ -1545,6 +1562,22 @@
       if (event.target.closest('#run-debug')) buildDebugTable();
     });
     document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    (() => {
+      const fsButton = document.getElementById('fullscreen-toggle');
+      if (document.documentElement.requestFullscreen && document.fullscreenEnabled) {
+        fsButton.hidden = false;
+        fsButton.addEventListener('click', () => {
+          if (document.fullscreenElement) document.exitFullscreen();
+          else document.documentElement.requestFullscreen().catch(() => {});
+        });
+        document.addEventListener('fullscreenchange', () => {
+          const active = Boolean(document.fullscreenElement);
+          fsButton.classList.toggle('is-active', active);
+          fsButton.dataset.tooltip = active ? 'ออกจากเต็มจอ' : 'เต็มจอ';
+          fsButton.setAttribute('aria-label', active ? 'ออกจากเต็มจอ' : 'เต็มจอ');
+        });
+      }
+    })();
     document.getElementById('toggle-controls').addEventListener('click', event => {
       const workspace = document.querySelector('.workspace');
       const collapsed = workspace.classList.toggle('controls-collapsed');
