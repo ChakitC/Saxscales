@@ -512,6 +512,46 @@
       }
     };
 
+    const PREFS_KEY = 'saxScales.prefs.v1';
+    const PREF_MODES = ['1oct', '2oct', 'full'];
+
+    function loadPrefs() {
+      try {
+        const raw = localStorage.getItem(PREFS_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function savePrefs() {
+      try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify({
+          key: state.key,
+          mode: state.mode,
+          highFsharp: state.highFsharp,
+          doReMi: state.doReMi,
+          bpm: state.bpm,
+          theme: document.documentElement.dataset.theme
+        }));
+      } catch (error) {
+        // localStorage อาจถูกปิด (private mode / quota) — ให้แอปทำงานต่อได้ตามปกติ
+      }
+    }
+
+    function restorePrefs() {
+      const prefs = loadPrefs();
+      if (!prefs) return 'light';
+      if (KEY_ORDER.includes(prefs.key)) state.key = prefs.key;
+      if (typeof prefs.highFsharp === 'boolean') state.highFsharp = prefs.highFsharp;
+      if (typeof prefs.doReMi === 'boolean') state.doReMi = prefs.doReMi;
+      if (PREF_MODES.includes(prefs.mode) && modeAvailable(state.key, prefs.mode)) state.mode = prefs.mode;
+      if (Number.isFinite(prefs.bpm)) state.bpm = Math.min(240, Math.max(10, Math.round(prefs.bpm)));
+      document.getElementById('note-name-toggle').textContent = state.doReMi ? 'Do' : 'A';
+      return prefs.theme === 'dark' ? 'dark' : 'light';
+    }
+
     function parseNote(note) {
       const match = /^([A-G])([#b]?)(\d+)$/.exec(note);
       if (!match) throw new Error('ชื่อโน้ตไม่ถูกต้อง: ' + note);
@@ -846,6 +886,7 @@
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) return updatePlaybackControls();
       state.bpm = Math.min(240, Math.max(10, Math.round(numeric)));
+      savePrefs();
       updatePlaybackControls();
     }
 
@@ -1555,13 +1596,13 @@
 
     document.addEventListener('click', event => {
       const keyButton = event.target.closest('[data-key]');
-      if (keyButton && keyButton.closest('#key-grid')) { state.key = keyButton.dataset.key; resetPracticeSession(); updateAll(); }
+      if (keyButton && keyButton.closest('#key-grid')) { state.key = keyButton.dataset.key; resetPracticeSession(); savePrefs(); updateAll(); }
       const modeButton = event.target.closest('[data-mode]');
-      if (modeButton && !modeButton.disabled) { state.mode = modeButton.dataset.mode; resetPracticeSession(); renderModeButtons(); renderScaleCard(); }
+      if (modeButton && !modeButton.disabled) { state.mode = modeButton.dataset.mode; resetPracticeSession(); savePrefs(); renderModeButtons(); renderScaleCard(); }
       if (event.target.closest('#close-debug')) document.getElementById('debug-card').hidden = true;
       if (event.target.closest('#run-debug')) buildDebugTable();
     });
-    document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    document.getElementById('theme-toggle').addEventListener('click', () => { applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); savePrefs(); });
     (() => {
       const fsButton = document.getElementById('fullscreen-toggle');
       if (document.documentElement.requestFullscreen && document.fullscreenEnabled) {
@@ -1586,8 +1627,8 @@
       event.currentTarget.dataset.tooltip = collapsed ? 'Open controls' : 'Collapse controls';
       event.currentTarget.textContent = collapsed ? '›' : '‹';
     });
-    document.getElementById('note-name-toggle').addEventListener('click', event => { state.doReMi = !state.doReMi; event.currentTarget.textContent = state.doReMi ? 'Do' : 'A'; renderScaleCard(); renderPracticeCard(); });
-    document.getElementById('high-fsharp').addEventListener('change', event => { state.highFsharp = event.target.checked; if (!modeAvailable(state.key, state.mode)) state.mode = 'full'; resetPracticeSession(); updateAll(); });
+    document.getElementById('note-name-toggle').addEventListener('click', event => { state.doReMi = !state.doReMi; event.currentTarget.textContent = state.doReMi ? 'Do' : 'A'; savePrefs(); renderScaleCard(); renderPracticeCard(); });
+    document.getElementById('high-fsharp').addEventListener('change', event => { state.highFsharp = event.target.checked; if (!modeAvailable(state.key, state.mode)) state.mode = 'full'; resetPracticeSession(); savePrefs(); updateAll(); });
     document.getElementById('print-current').addEventListener('click', () => { state.printAll = false; document.body.classList.remove('print-all'); window.print(); });
     document.getElementById('print-all').addEventListener('click', () => {
       state.printAll = true;
@@ -1651,7 +1692,7 @@
       }
     });
 
-    applyTheme('light');
+    applyTheme(restorePrefs());
     updateAll();
   </script>
 </body>
